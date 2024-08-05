@@ -1,8 +1,10 @@
 #include <assert.h>
-#include <rbtree.h>
+#include "rbtree.c"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+int test = 0;
 
 // new_rbtree should return rbtree struct with null root node
 void test_init(void) {
@@ -388,6 +390,6 @@ int main(void) {
   printf("Passed 9!\n");
   test_multi_instance();
   printf("Passed 10!\n");
-  test_find_erase_rand(10000, 17);
+  test_find_erase_rand(100000, 17);
   printf("Passed all tests!\n");
 }
