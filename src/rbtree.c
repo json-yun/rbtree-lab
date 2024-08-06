@@ -1,21 +1,12 @@
 #include "rbtree.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 
-#define IS_BLACK(x) ((x == NULL) || (x->color == RBTREE_BLACK))
+#define IS_BLACK(x) (((x) == NULL) || ((x)->color == RBTREE_BLACK))
 
 rbtree *new_rbtree(void)
 {
     rbtree *p = (rbtree *)calloc(1, sizeof(rbtree));
-    // p->root = NULL;
-    // sentinel 안 쓸래
-    // p->nil = (node_t *)calloc(1, sizeof(node_t));
-    // p->nil->color = RBTREE_BLACK;
-    // p->nil->left = p->nil;
-    // p->nil->right = p->nil;
-    // p->nil->parent = p->nil;
-    // p->root = p->nil;
 
     return p;
 }
@@ -34,12 +25,12 @@ void delete_rbtree(rbtree *t)
     free(t);
 }
 
-// rotate t↷t->parent
-// t->parent->parent should be present
+// rotate N↷N->parent
 // returns old parent(new child)
 node_t *_rotate_tree(rbtree *t, node_t *N) {
     node_t *P = N->parent;
 
+    // when N is right child
     if (N == P->right) {
         P->right = N->left;
         if (N->left != NULL) {
@@ -55,6 +46,7 @@ node_t *_rotate_tree(rbtree *t, node_t *N) {
         P->parent = N;
         N->left = P;
     }
+    // when N is left child
     else {
         P->left = N->right;
         if (N->right != NULL) {
@@ -78,15 +70,17 @@ node_t *_rotate_tree(rbtree *t, node_t *N) {
 node_t *rbtree_insert(rbtree *t, const key_t key)
 {
     node_t **ptrCur = &(t->root);
-    node_t *N, *P, *U, *G; // N for now, P for parent, U for uncle node and G for grandparent node
+    // N for now, P for parent, U for uncle node and G for grandparent node
+    node_t *N, *P, *U, *G;
     P = NULL;
 
     // binary search tree insertion
-    // find insert point
+    // find insert position
     while (*ptrCur != NULL) {
         P = *ptrCur;
         ptrCur = (key < P->key) ? &(P->left) : &(P->right);
     }
+
     // allocate new node & place
     N = (node_t *)calloc(1, sizeof(node_t));
     N->parent = P;
@@ -95,38 +89,38 @@ node_t *rbtree_insert(rbtree *t, const key_t key)
     *ptrCur = N;
 
     // rebalancing loop
-    P = N->parent;
-    while (!IS_BLACK(P)) {
-        // P is red and not NULL
-        if (P != t->root) {
-            G = P->parent;
-            U = (P == G->left) ? G->right : G->left;
-        }
-        else {
+    // no need if P is black or NULL
+    for (; !IS_BLACK(P); P = N->parent) {
+        // I4: if P is root and red
+        if (P == t->root) {
             P->color = RBTREE_BLACK;
             break;
         }
 
+        G = P->parent;
+        U = (P == G->left) ? G->right : G->left;
+
+        // if U is black
         if (IS_BLACK(U)) {
-            // if N is inner grandchild
+            // I5: if N is inner grandchild
             if ((P == G->left && N == P->right)
             || (P == G->right && N == P->left)) {
                 P = N;
                 N = _rotate_tree(t, N);
             }
+            // I6: if N is outer grandchild
             _rotate_tree(t, P);
             P->color = RBTREE_BLACK;
             G->color = RBTREE_RED;
             break;
         }
-        // if uncle node is red:
+        // I2: if U is red:
         else {
             P->color = RBTREE_BLACK;
             U->color = RBTREE_BLACK;
             G->color = RBTREE_RED;
             N = G;
         }
-        P = N->parent;
     }
 
     return N;
@@ -135,33 +129,38 @@ node_t *rbtree_insert(rbtree *t, const key_t key)
 node_t *rbtree_find(const rbtree *t, const key_t key)
 {
     node_t *cur = t->root;
+
     while (cur != NULL && cur->key != key) {
         cur = key < cur->key? cur->left: cur->right;
     }
+
     return cur;
 }
 
 node_t *rbtree_min(const rbtree *t)
 {
     node_t *cur = t->root;
+
     while (cur->left != NULL) cur = cur->left;
+
     return cur;
 }
 
 node_t *rbtree_max(const rbtree *t)
 {
     node_t *cur = t->root;
+
     while (cur->right != NULL) cur = cur->right;
+
     return cur;
 }
 
-// predecessor as a fallback return value
+// returns predecessor if successor absent
 node_t *_find_successor(node_t *t) {
-    if (t->right == NULL) return t->left;
+    node_t *cur = t->right;
+    // fallback
+    if (cur == NULL) return t->left;
 
-    node_t *cur;
-
-    cur = t->right;
     while (cur->left != NULL) cur = cur->left;
 
     return cur;
@@ -169,9 +168,12 @@ node_t *_find_successor(node_t *t) {
 
 int rbtree_erase(rbtree *t, node_t *p)
 {
+    // N for now, P for parent, S for sibling,
+    // C for close nephew and D for distant nephew node
     node_t *N, *P, *S, *C = NULL, *D = NULL;
     N = p;
 
+    // if N is not leaf node
     while (N->left != NULL || N->right != NULL) {
         p = _find_successor(N);
         N->key = p->key;
@@ -179,12 +181,9 @@ int rbtree_erase(rbtree *t, node_t *p)
     }
     // now N has no child
 
+    // no task needed if N is red
     if (N->color == RBTREE_BLACK) {
-    // no need if N is red
-        while (N != t->root) {
-            // N for now, P for parent, S for sibling, C for close nephew, D for distant nephew node
-            P = N->parent;
-            // if S is red
+        for (P = N->parent; N != t->root; P = N->parent) {
             if (P->left == N) {
                 S = P->right;
                 if (S != NULL) {
@@ -199,42 +198,41 @@ int rbtree_erase(rbtree *t, node_t *p)
                     D = S->left;
                 }
             }
+            // D3: if S is red
             if (!IS_BLACK(S)) {
                 _rotate_tree(t, S);
                 S->color = RBTREE_BLACK;
                 P->color = RBTREE_RED;
             }
+            // D6: if S is black, D is red
+            else if (!IS_BLACK(D)) {
+                _rotate_tree(t, S);
+                S->color = P->color;
+                P->color = RBTREE_BLACK;
+                D->color = RBTREE_BLACK;
+                break;
+            }
+            // D5: if S, D are black, C is red
+            else if (!IS_BLACK(C)) {
+                _rotate_tree(t, C);
+                C->color = RBTREE_BLACK;
+                S->color = RBTREE_RED;
+            }
+            // D4: if S, C, D are black, P is red
+            else if (!IS_BLACK(P)) {
+                S->color = RBTREE_RED;
+                P->color = RBTREE_BLACK;
+                break;
+            }
+            // D2: if S, P, C, D are black:
             else {
-                // if S is black, D is red
-                if (!IS_BLACK(D)) {
-                    _rotate_tree(t, S);
-                    S->color = P->color;
-                    P->color = RBTREE_BLACK;
-                    D->color = RBTREE_BLACK;
-                    break;
-                }
-                // if S, D are black, C is red
-                else if (!IS_BLACK(C)) {
-                    _rotate_tree(t, C);
-                    C->color = RBTREE_BLACK;
-                    S->color = RBTREE_RED;
-                }
-                // if S, C, D are black, P is red
-                else if (!IS_BLACK(P)) {
-                    S->color = RBTREE_RED;
-                    P->color = RBTREE_BLACK;
-                    break;
-                }
-                // if S, P, C, D are black:
-                else {
-                    S->color = RBTREE_RED;
-                    N = P;
-                }
+                S->color = RBTREE_RED;
+                N = P;
             }
         }
     }
 
-    // delete p
+    // free p
     if (p != t->root) {
         if (p->parent->left == p) p->parent->left = NULL;
         else p->parent->right = NULL;
@@ -249,7 +247,7 @@ int rbtree_erase(rbtree *t, node_t *p)
 
 int rbtree_to_array(const rbtree *t, key_t *arr, const size_t n)
 {
-    int sbp = 0; // stack pointer. use arr as stack
+    int sbp = 0; // stack pointer.
     int i = 0;
     node_t *stack[(int)n];
     node_t *cur = t->root;
