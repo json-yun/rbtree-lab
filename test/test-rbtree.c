@@ -388,6 +388,6 @@ int main(void) {
   printf("Passed 9!\n");
   test_multi_instance();
   printf("Passed 10!\n");
-  test_find_erase_rand(10000, 17);
+  test_find_erase_rand(100000, 17);
   printf("Passed all tests!\n");
 }
